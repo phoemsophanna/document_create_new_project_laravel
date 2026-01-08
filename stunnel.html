@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Laravel + Stunnel Integration Guide</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            margin: 0;
+            padding: 0;
+            background: #f9f9f9;
+            color: #333;
+        }
+        .container {
+            max-width: 900px;
+            margin: 40px auto;
+            padding: 20px 30px;
+            background: #fff;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+            border-radius: 8px;
+        }
+        h1, h2, h3 {
+            color: #2c3e50;
+        }
+        pre {
+            background: #2d2d2d;
+            color: #f8f8f2;
+            padding: 15px;
+            border-radius: 5px;
+            overflow-x: auto;
+        }
+        code {
+            font-family: Consolas, monospace;
+            font-size: 14px;
+        }
+        p {
+            margin-bottom: 10px;
+        }
+        hr {
+            border: 0;
+            height: 1px;
+            background: #ddd;
+            margin: 40px 0;
+        }
+        .note {
+            background: #f0f8ff;
+            padding: 10px 15px;
+            border-left: 4px solid #1e90ff;
+            margin-bottom: 20px;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Laravel + Stunnel Integration Guide</h1>
+
+        <hr>
+
+        <h2>Step 1: Create stunnel.conf File</h2>
+        <p>You can create the file anywhere, but the standard location is <code>/etc/stunnel/</code>.</p>
+        <pre><code>sudo mkdir -p /etc/stunnel
+sudo nano /etc/stunnel/stunnel.conf
+        </code></pre>
+        <p>This will open the <strong>nano</strong> editor to create your configuration file.</p>
+
+        <h3>Step 2: Add Configuration Content</h3>
+        <pre><code>; stunnel client configuration
+client = yes
+
+[api_connection]
+accept = 127.0.0.1:150
+connect = XX.XXX.XXX.XX:XXXX
+
+; Optional logging
+debug = 7
+output = /home/Document/stunnel.log
+        </code></pre>
+        <div class="note">
+            <strong>Notes:</strong>
+            <ul>
+                <li>Replace <code>XX.XXX.XXX.XX</code> and <code>XXXX</code> with your remote API host and port.</li>
+                <li><code>accept</code> is the local port your backend will connect to (pick any free port, e.g., 12345).</li>
+                <li><code>output</code> is the log file path.</li>
+            </ul>
+        </div>
+
+        <h3>Step 3: Save and Exit</h3>
+        <pre><code>Ctrl + O → Enter → to save
+Ctrl + X → to exit</code></pre>
+
+        <h3>Step 4: Start stunnel</h3>
+        <pre><code>sudo stunnel /etc/stunnel/stunnel.conf</code></pre>
+
+        <h3>Step 5: Verify Listening Port</h3>
+        <pre><code>sudo ss -tulnp | grep 12345</code></pre>
+        <p>You should see <code>127.0.0.1:12345 LISTEN</code> with the stunnel PID.</p>
+
+        <hr>
+
+        <h2>Step 6: Create a Laravel Service Class</h2>
+        <p>Create the file manually at <code>app/Services/ApiStunnelService.php</code> and paste:</p>
+        <pre><code>&lt;?php
+
+namespace App\Services;
+
+class ApiStunnelService
+{
+    protected string $host;
+    protected int $port;
+    protected array $userDetails;
+    protected array $session;
+
+    public function __construct()
+    {
+        $this->host = '127.0.0.1';
+        $this->port = 110;
+
+        $this->userDetails = [
+            'Username' => 'YOUR_USERNAME',
+            'Password' => 'YOUR_PASSWORD',
+            'UserOrganization' => 'CXXX',
+            'SenderSubID' => 'XXXXX',
+            'DeliverToCompId' => 'XXXXX',
+        ];
+
+        $this->session = [
+            [
+                'TargetCompID' =&gt; 'XXXXXX',
+                'SenderCompID' =&gt; 'order.CCCCCC',
+            ],
+            [
+                'TargetCompID' =&gt; 'DDDDDD',
+                'SenderCompID' =&gt; 'quote.SSSSSSS',
+            ]
+        ];
+    }
+
+    public function sendMessage(string $message): string
+    {
+        $socket = @stream_socket_client("tcp://{$this->host}:{$this->port}", $errno, $errstr, 30);
+
+        if (!$socket) {
+            throw new \Exception("Socket error: $errstr ($errno)");
+        }
+
+        $payload = json_encode([
+            'user' =&gt; $this->userDetails,
+            'session' =&gt; $this->session,
+            'message' =&gt; $message,
+        ]);
+
+        fwrite($socket, $payload . "\n");
+
+        $response = fread($socket, 4096);
+        fclose($socket);
+
+        return $response;
+    }
+
+    public function getUserData(): string
+    {
+        return $this->sendMessage('GET_USER');
+    }
+
+    public function sendOrder(array $orderData): string
+    {
+        return $this->sendMessage(json_encode($orderData));
+    }
+}
+        </code></pre>
+
+        <hr>
+
+        <h2>Step 7: Use the Service in a Controller</h2>
+        <p>Create a controller:</p>
+        <pre><code>php artisan make:controller ApiController</code></pre>
+        <p>Then paste:</p>
+        <pre><code>&lt;?php
+
+namespace App\Http\Controllers;
+
+use App\Services\ApiStunnelService;
+
+class ApiController extends Controller
+{
+    public function test()
+    {
+        $api = new ApiStunnelService();
+
+        $response = $api-&gt;getUserData();
+
+        return response()-&gt;json([
+            'status' =&gt; 'success',
+            'response' =&gt; $response,
+        ]);
+    }
+}
+        </code></pre>
+
+        <h3>Step 8: Add Route</h3>
+        <pre><code>use App\Http\Controllers\ApiController;
+
+Route::get('/api/test', [ApiController::class, 'test']);</code></pre>
+
+        <h3>Step 9: Run and Test</h3>
+        <pre><code>php artisan serve
+Visit: http://localhost:8000/api/test</code></pre>
+        <p>You should see the API response forwarded via stunnel.</p>
+
+    </div>
+</body>
+</html>
