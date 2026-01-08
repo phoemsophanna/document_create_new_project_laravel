@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🔐 Secure Laravel 12 Project (Step by Step)</title>
+    <style>
+        body {
+            font-family: Arial, Helvetica, sans-serif;
+            background-color: #f8fafc;
+            color: #0f172a;
+            line-height: 1.7;
+            padding: 40px;
+        }
+        h1, h2, h3 {
+            color: #020617;
+        }
+        h1 {
+            border-bottom: 3px solid #e5e7eb;
+            padding-bottom: 12px;
+            margin-bottom: 24px;
+        }
+        section {
+            margin-bottom: 36px;
+        }
+        pre {
+            background-color: #020617;
+            color: #f8fafc;
+            padding: 16px;
+            border-radius: 6px;
+            overflow-x: auto;
+        }
+        ul {
+            margin-left: 20px;
+        }
+        .step {
+            background: #eef2ff;
+            padding: 14px 18px;
+            border-left: 5px solid #6366f1;
+            margin-bottom: 16px;
+        }
+        .secure {
+            background: #ecfdf5;
+            padding: 14px 18px;
+            border-left: 5px solid #10b981;
+            margin-bottom: 16px;
+        }
+    </style>
+</head>
+<body>
+<a href="role_and_permission.html">Role And Permission</a>
+<a href="starting_project_with_laravel.html">Starting laravel new project</a>
+<a href="userlogs.html">User Logs Action</a>
+<h1>🔐 Secure Laravel 12 Project (Step by Step)</h1>
+
+<section>
+    <p>
+        This guide shows how to create a <strong>secure Laravel 12 project</strong>
+        from scratch with <strong>authentication</strong> and best security practices.
+        Suitable for <strong>admin systems, POS, and accounting applications</strong>.
+    </p>
+</section>
+
+<section>
+    <h2>Step 1: Create New Laravel 12 Project</h2>
+    <div class="step">Requirements: PHP 8.2+, Composer</div>
+    <pre>composer create-project laravel/laravel secure-app
+cd secure-app
+php artisan serve</pre>
+    <p>Visit <strong>http://127.0.0.1:8000</strong></p>
+</section>
+
+<section>
+    <h2>Step 2: Secure Environment Configuration</h2>
+    <div class="secure">Never expose your <code>.env</code> file</div>
+    <pre>APP_NAME="Secure App"
+APP_ENV=local
+APP_DEBUG=false
+APP_URL=http://127.0.0.1:8000</pre>
+
+```
+<pre>php artisan key:generate</pre>
+```
+
+</section>
+
+<section>
+    <h2>Step 3: Database Configuration</h2>
+    <pre>DB_CONNECTION=mysql
+DB_HOST=127.0.0.1
+DB_PORT=3306
+DB_DATABASE=secure_db
+DB_USERNAME=root
+DB_PASSWORD=</pre>
+
+```
+<pre>php artisan migrate</pre>
+```
+
+</section>
+
+<section>
+    <h2>Step 4: Install Authentication (Laravel Breeze)</h2>
+    <div class="step">Laravel Breeze is simple, secure, and recommended</div>
+    <pre>composer require laravel/breeze --dev
+php artisan breeze:install
+php artisan migrate
+npm install && npm run build</pre>
+
+<div class="content">
+    <h1>Authication</h1>
+    <h3>Install Breeze for security auth</h3>
+    <div class="command">
+        composer require laravel/breeze --dev
+        <br>
+        php artisan breeze:install blade
+    </div>
+    <h3>Create a authcontroller for control action login logout register from user.</h3>
+    <div class="command">
+        php artisan make:controller AuthController
+    </div>
+    <h3>This <span>use Illuminate\Support\Facades\Auth;</span> import for call auth to compare when login.</h3>
+    <h3>And this the example login function</h3>
+    <div class="command">
+        public function login(Request $request)
+        <br>
+        {
+        <br>
+            $credentials = $request->validate([<br>
+                'email' => 'required|email',<br>
+                'password' => 'required',<br>
+            ]);<br>
+
+            if (!Auth::attempt($credentials)) {<br>
+                return back()->withErrors([<br>
+                    'email' => 'Invalid email or password',<br>
+                ]);<br>
+            }<br>
+
+            $request->session()->regenerate();<br>
+
+            return redirect('/dashboard');<br>
+        }
+    </div>
+    <h3>This for logout function.</h3>
+    <div class="command">
+        public function logout(Request $request)
+        <br>
+        {
+            Auth::logout();<br>
+
+            $request->session()->invalidate();<br>
+            $request->session()->regenerateToken();<br>
+
+            return redirect('/login');<br>
+        }
+    </div>
+</div>
+
+<div class="content">
+    <h1>Create New Laravel With Choose Version</h1>
+    <div class="command">
+        composer create-project laravel/laravel myProject "10.*"
+    </div>
+</div>
+
+```
+<ul>
+    <li>Login & Registration</li>
+    <li>Password reset</li>
+    <li>Session security</li>
+    <li>CSRF protection</li>
+</ul>
+```
+
+</section>
+
+<section>
+    <h2>Step 5: Protect Routes</h2>
+    <pre>// routes/web.php
+Route::get('/', function () {
+    return view('welcome');
+});
+
+Route::middleware(['auth'])->group(function () {
+Route::get('/dashboard', function () {
+return view('dashboard');
+});
+});</pre>
+
+</section>
+
+<section>
+    <h2>Step 6: Protect Controllers</h2>
+    <pre>class DashboardController extends Controller
+{
+    public function __construct()
+    {
+        $this->middleware('auth');
+    }
+
+```
+public function index()
+{
+    return view('dashboard');
+}
+```
+
+}</pre>
+
+</section>
+
+<section>
+    <h2>Step 7: CSRF Protection</h2>
+    <div class="secure">CSRF protection is enabled by default</div>
+    <pre>&lt;form method="POST"&gt;
+    @csrf
+&lt;/form&gt;</pre>
+</section>
+
+<section>
+    <h2>Step 8: Password Security</h2>
+    <p>Laravel hashes passwords automatically using bcrypt.</p>
+    <pre>use Illuminate\Support\Facades\Hash;
+
+Hash::make($password);</pre>
+
+</section>
+
+<section>
+    <h2>Step 9: Production Security Settings</h2>
+    <div class="secure">Never deploy with debug enabled</div>
+    <pre>APP_ENV=production
+APP_DEBUG=false</pre>
+</section>
+
+<section>
+    <h2>Step 10: Additional Security Best Practices</h2>
+    <ul>
+        <li>Force HTTPS in production</li>
+        <li>Protect admin routes with authentication</li>
+        <li>Use rate limiting on login</li>
+        <li>Log authentication activity</li>
+    </ul>
+</section>
+
+<section>
+    <h2>Next Steps</h2>
+    <ul>
+        <li>Add Role & Permission system</li>
+        <li>Create secure admin routes</li>
+        <li>Add audit logs</li>
+        <li>Prepare for deployment</li>
+    </ul>
+</section>
+
+</body>
+</html>

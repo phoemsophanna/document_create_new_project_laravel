@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Laravel Simple Role & Permission Guide</title>
+    <style>
+        body {
+            font-family: Arial, Helvetica, sans-serif;
+            background-color: #f9fafb;
+            color: #111827;
+            line-height: 1.6;
+            padding: 40px;
+        }
+        h1, h2, h3 {
+            color: #1f2937;
+        }
+        h1 {
+            border-bottom: 2px solid #e5e7eb;
+            padding-bottom: 10px;
+        }
+        section {
+            margin-bottom: 32px;
+        }
+        pre {
+            background-color: #111827;
+            color: #f9fafb;
+            padding: 16px;
+            border-radius: 6px;
+            overflow-x: auto;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 12px;
+        }
+        th, td {
+            border: 1px solid #d1d5db;
+            padding: 10px;
+            text-align: left;
+        }
+        th {
+            background-color: #e5e7eb;
+        }
+        .good { color: #065f46; font-weight: bold; }
+        .bad { color: #991b1b; font-weight: bold; }
+    </style>
+</head>
+<body>
+<a href="role_and_permission.html">Role And Permission</a>
+<a href="starting_project_with_laravel.html">Starting laravel new project</a>
+<a href="userlogs.html">User Logs Action</a>
+<h1>Laravel Simple Role & Permission System (Without Spatie)</h1>
+
+<section>
+    <p>
+        This document describes a <strong>simple, clean, and fully controllable</strong>
+        role & permission system for Laravel applications.
+        It is ideal for <strong>POS systems, admin panels, and accounting software</strong>.
+    </p>
+</section>
+
+<section>
+    <h2>1. Why Not Spatie?</h2>
+    <ul>
+        <li>Hard to control when permissions grow</li>
+        <li>Too much hidden logic (magic)</li>
+        <li>Cache issues make debugging harder</li>
+        <li>Overkill for small and internal systems</li>
+    </ul>
+</section>
+
+<section>
+    <h2>2. Database Structure</h2>
+
+```
+<h3>Roles Table</h3>
+<pre>Schema::create('roles', function (Blueprint $table) {
+$table->id();
+$table->string('name'); // admin, cashier, supervisor
+$table->timestamps();
+```
+
+});</pre>
+
+```
+<h3>Permissions Table</h3>
+<pre>Schema::create('permissions', function (Blueprint $table) {
+$table->id();
+$table->string('key'); // edit_invoice, delete_product
+$table->string('label')->nullable();
+$table->timestamps();
+```
+
+});</pre>
+
+```
+<h3>Role Permission Pivot Table</h3>
+<pre>Schema::create('role_permission', function (Blueprint $table) {
+$table->id();
+$table->foreignId('role_id')->constrained()->cascadeOnDelete();
+$table->foreignId('permission_id')->constrained()->cascadeOnDelete();
+```
+
+});</pre>
+
+```
+<h3>Users Table</h3>
+<pre>$table->foreignId('role_id')->nullable()->constrained();</pre>
+```
+
+</section>
+
+<section>
+    <h2>3. Models</h2>
+
+```
+<h3>User Model</h3>
+<pre>class User extends Authenticatable
+```
+
+{
+public function role()
+{
+return $this->belongsTo(Role::class);
+}
+
+```
+public function hasPermission($key)
+{
+    return $this->role
+        ? $this->role->permissions->where('key', $key)->isNotEmpty()
+        : false;
+}
+```
+
+}</pre>
+
+```
+<h3>Role Model</h3>
+<pre>class Role extends Model
+```
+
+{
+public function permissions()
+{
+return $this->belongsToMany(Permission::class, 'role_permission');
+}
+}</pre>
+
+</section>
+
+<section>
+    <h2>4. Usage</h2>
+
+```
+<h3>Controller Example</h3>
+<pre>if (!auth()->user()->hasPermission('edit_invoice')) {
+abort(403);
+```
+
+}</pre>
+
+```
+<h3>Blade View Example</h3>
+<pre>@if(auth()->user()->hasPermission('delete_product'))
+<button>Delete</button>
+```
+
+@endif</pre>
+
+</section>
+
+<section>
+    <h2>5. Middleware</h2>
+
+```
+<h3>Create Middleware</h3>
+<pre>php artisan make:middleware PermissionMiddleware</pre>
+
+<h3>PermissionMiddleware.php</h3>
+<pre>public function handle($request, Closure $next, $permission)
+```
+
+{
+if (!auth()->check() || !auth()->user()->hasPermission($permission)) {
+abort(403);
+}
+return $next($request);
+}</pre>
+
+```
+<h3>Register Middleware</h3>
+<pre>📍 File: bootstrap/app.php
+```
+
+use App\Http\Middleware\PermissionMiddleware;
+
+$app->routeMiddleware([
+    'permission' => PermissionMiddleware::class,
+]);</pre>
+
+```
+<h3>Route Usage</h3>
+<pre>Route::middleware(['permission:edit_invoice'])->group(function () {
+Route::post('/invoice/edit', [InvoiceController::class, 'edit']);
+```
+
+});</pre>
+
+</section>
+
+<section>
+    <h2>6. Seeder Example</h2>
+    <pre>$admin = Role::create(['name' => 'admin']);
+$cashier = Role::create(['name' => 'cashier']);
+
+$editInvoice = Permission::create([
+'key' => 'edit_invoice',
+'label' => 'Edit Invoice'
+]);
+
+$admin->permissions()->attach($editInvoice);</pre>
+
+</section>
+
+<section>
+    <h2>7. Best Practices</h2>
+    <p class="bad">❌ Bad</p>
+    <pre>if ($user->role == 'admin')</pre>
+
+```
+<p class="good">✅ Good</p>
+<pre>if ($user->hasPermission('delete_invoice'))</pre>
+```
+
+</section>
+
+<section>
+    <h2>8. Example Roles</h2>
+    <table>
+        <tr>
+            <th>Role</th>
+            <th>Permissions</th>
+        </tr>
+        <tr>
+            <td>Admin</td>
+            <td>manage_users, edit_invoice, delete_product</td>
+        </tr>
+        <tr>
+            <td>Cashier</td>
+            <td>create_invoice, view_product</td>
+        </tr>
+        <tr>
+            <td>Supervisor</td>
+            <td>approve_invoice, edit_stock</td>
+        </tr>
+    </table>
+</section>
+
+<section>
+    <h2>9. Summary</h2>
+    <p>
+        This custom role & permission system is easy to understand,
+        easy to maintain, and gives you full control without external packages.
+    </p>
+</section>
+
+</body>
+</html>
