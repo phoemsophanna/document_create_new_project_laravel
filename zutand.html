@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Zustand Global State Guide</title>
+  <style>
+    body { font-family: Arial, sans-serif; line-height: 1.6; padding: 20px; }
+    h1, h2, h3 { color: #2c3e50; }
+    code { background: #f4f4f4; padding: 2px 5px; border-radius: 3px; }
+    pre { background: #f4f4f4; padding: 10px; border-radius: 5px; overflow-x: auto; }
+    ul { margin-bottom: 20px; }
+    table { border-collapse: collapse; width: 100%; margin-bottom: 20px; }
+    table, th, td { border: 1px solid #ccc; padding: 8px; text-align: left; }
+    th { background: #f0f0f0; }
+  </style>
+</head>
+<body>
+<a href="index.html">Back</a>
+<h1>🥇 Zustand (THIS is what you want)</h1>
+
+<p>It’s:</p>
+<ul>
+  <li>✅ Global</li>
+  <li>✅ Data stays on route change</li>
+  <li>✅ Super simple</li>
+  <li>✅ No Provider</li>
+  <li>✅ Perfect for Header / permissions / user</li>
+</ul>
+
+<h2>✅ Zustand – Simple & Clean</h2>
+
+<h3>1️⃣ Install</h3>
+<pre><code>npm install zustand</code></pre>
+
+<h3>2️⃣ Create Global Store</h3>
+<pre><code>// store/useAppStore.js
+import { create } from "zustand";
+
+export const useAppStore = create((set) => ({
+  user: null,
+  permissions: [],
+  loaded: false,
+
+  setUser: (user) =&gt; set({ user }),
+  setPermissions: (permissions) =&gt; set({ permissions }),
+  setLoaded: () =&gt; set({ loaded: true }),
+}));
+</code></pre>
+
+<h3>3️⃣ Fetch ONLY ONE TIME (Header or Layout client)</h3>
+<pre><code>"use client";
+
+import { useEffect } from "react";
+import { useAppStore } from "@/store/useAppStore";
+
+const Header = () =&gt; {
+  const { user, loaded, setUser, setPermissions, setLoaded } = useAppStore();
+
+  useEffect(() =&gt; {
+    if (!loaded) {
+      fetch("/api/profile")
+        .then((r) =&gt; r.json())
+        .then((data) =&gt; {
+          setUser(data.user);
+          setPermissions(data.permissions);
+          setLoaded(); // 🔑 prevents re-fetch
+        });
+    }
+  }, [loaded]);
+
+  return &lt;div&gt;{user?.name}&lt;/div&gt;;
+};
+
+export default Header;
+</code></pre>
+
+<p>🔥 Route change → state stays</p>
+<p>🔥 No refetch</p>
+<p>🔥 Very readable</p>
+
+<h3>4️⃣ Use Anywhere (No Props, No Provider)</h3>
+<pre><code>import { useAppStore } from "@/store/useAppStore";
+
+const Button = () =&gt; {
+  const permissions = useAppStore((s) =&gt; s.permissions);
+
+  return permissions.includes("user.edit") &amp;&amp; &lt;button&gt;Edit&lt;/button&gt;;
+};
+</code></pre>
+
+<h2>🧠 Why Zustand &gt; Redux for your case</h2>
+
+<table>
+  <tr>
+    <th>Feature</th>
+    <th>Redux</th>
+    <th>Zustand</th>
+  </tr>
+  <tr>
+    <td>Boilerplate</td>
+    <td>❌ Heavy</td>
+    <td>✅ Tiny</td>
+  </tr>
+  <tr>
+    <td>Provider</td>
+    <td>Required</td>
+    <td>❌ No</td>
+  </tr>
+  <tr>
+    <td>Route change</td>
+    <td>✅</td>
+    <td>✅</td>
+  </tr>
+  <tr>
+    <td>Easy</td>
+    <td>😵</td>
+    <td>😌</td>
+  </tr>
+  <tr>
+    <td>Header global</td>
+    <td>😐</td>
+    <td>🔥</td>
+  </tr>
+</table>
+
+<p>💡 This template can be reused for any project — copy it, update code snippets, and save as <code>.html</code> for documentation or reference.</p>
+
+</body>
+</html>
