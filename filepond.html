@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+        }
+        h1, h2, h3 {
+            color: #2c3e50;
+        }
+        pre {
+            background: #f4f4f4;
+            padding: 12px;
+            overflow-x: auto;
+        }
+        code {
+            color: #c0392b;
+        }
+        ul {
+            margin-left: 20px;
+        }
+    </style>
+</head>
+<body>
+    <a href="index.html">Back</a>
+    <h1>Setup Filepond with React JS</h1>
+    <pre><code>
+        npm install filepond react-filepond filepond-plugin-image-preview filepond-plugin-file-validate-type --save
+    </code></pre>
+    <pre><code>
+        import React, { useState } from 'react';
+        import { FilePond, registerPlugin } from 'react-filepond';
+        import 'filepond/dist/filepond.min.css';
+        import FilePondPluginImagePreview from 'filepond-plugin-image-preview';
+        import 'filepond-plugin-image-preview/dist/filepond-plugin-image-preview.css';
+
+        // Register the plugins (e.g., image preview)
+        registerPlugin(FilePondPluginImagePreview);
+
+        const FileUploadComponent = () => {
+            const [files, setFiles] = useState([]);
+
+            return (
+                
+                div className="App">
+                    FilePond
+                        files={files}
+                        onupdatefiles={setFiles}
+                        allowMultiple={true}
+                        server="http://your-laravel-app-url/api/upload" // Configure the Laravel endpoint
+                        name="files" /* sets the file input name to 'files' */
+                        labelIdle='Drag & Drop your files or [Browse] '
+                    />
+                /div>
+            );
+        };
+
+        export default FileUploadComponent;
+    </code></pre>
+    <h1>Laravel Backend Setup</h1>
+    <p>Define routes: In your Laravel application, set up a route (usually in routes/api.php) to handle the POST requests from FilePond.</p>
+    <pre><code>
+        use Illuminate\Support\Facades\Route;
+        use App\Http\Controllers\UploadController;
+
+        Route::post('/upload', [UploadController::class, 'process'])->name('upload.process');
+        Route::delete('/upload', [UploadController::class, 'revert'])->name('upload.revert');
+    </code></pre>
+    <p>Implement upload logic: In the UploadController, handle the file saving process. FilePond sends the file as multipart/form-data in a POST request by default.</p>
+    <pre><code>
+        namespace App\Http\Controllers;
+
+        use Illuminate\Http\Request;
+        use Illuminate\Support\Facades\Storage;
+
+        class UploadController extends Controller
+        {
+            public function process(Request $request)
+            {
+                if ($request->hasFile('files')) { // The input name matches the 'name' prop in React
+                    $file = $request->file('files');
+                    // Store the file temporarily and get its path/identifier
+                    $path = $file->store('public/tmp');
+                    // Return the temporary path to FilePond
+                    return response($path, 200)->header('Content-Type', 'text/plain');
+                }
+                return response('No file uploaded', 400);
+            }
+
+            public function revert(Request $request)
+            {
+                // Handle file removal from the temp directory if the user cancels
+                $filePath = $request->getContent();
+                Storage::delete($filePath);
+                return response(null, 200);
+            }
+        }
+
+    </code></pre>
+</body>
+</html>
